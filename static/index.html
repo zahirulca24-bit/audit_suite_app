@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Enterprise Audit & RJSC Practice Platform | Manager & Student Suite</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Vue 3 CDN -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    [v-cloak] { display: none; }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-800 antialiased min-h-screen">
+  <div id="app" v-cloak class="flex flex-col min-h-screen">
+    
+    <!-- Top Navigation Bar -->
+    <header class="bg-slate-900 text-white shadow-lg sticky top-0 z-50">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        
+        <!-- Logo & Branding -->
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-lg bg-emerald-600 flex items-center justify-center font-bold text-xl shadow-md">
+            ⚖️
+          </div>
+          <div>
+            <h1 class="font-bold text-lg leading-tight tracking-wide flex items-center space-x-2">
+              <span>AUDIT PRACTICE & TRAINING CLOUD</span>
+              <span class="bg-emerald-500/20 text-emerald-300 text-[10px] px-2 py-0.5 rounded border border-emerald-500/30 uppercase font-semibold">Enterprise</span>
+            </h1>
+            <p class="text-xs text-slate-400">Multi-Client • Google Drive Cloud • Student Apprenticeship</p>
+          </div>
+        </div>
+
+        <!-- Center: Client Selector Dropdown -->
+        <div class="flex items-center space-x-2">
+          <label class="text-xs text-slate-300 font-medium hidden md:inline">Company:</label>
+          <div class="relative">
+            <select v-model="selectedClientId" @change="fetchClientDetail" class="bg-slate-800 border border-slate-700 text-white text-xs sm:text-sm rounded-lg px-3 py-1.5 sm:py-2 focus:ring-2 focus:ring-emerald-500 focus:outline-none max-w-xs truncate">
+              <option v-for="c in clients" :key="c.id" :value="c.id">{{ c.company_name }}</option>
+            </select>
+          </div>
+          <button @click="showAddClientModal = true" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-2.5 py-1.5 sm:py-2 rounded-lg font-medium transition flex items-center space-x-1 shadow">
+            <i class="fa-solid fa-plus"></i>
+            <span class="hidden sm:inline">New Company</span>
+          </button>
+        </div>
+
+        <!-- Right: Current User & Role Switcher -->
+        <div class="flex items-center space-x-3">
+          <div class="text-right hidden sm:block">
+            <div class="text-xs font-semibold text-white flex items-center justify-end space-x-1">
+              <span>{{ currentUser.name }}</span>
+              <span :class="currentUser.role === 'manager' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-blue-500/20 text-blue-300 border border-blue-500/30'" class="text-[10px] px-1.5 py-0.2 rounded font-bold uppercase">
+                {{ currentUser.role === 'manager' ? '👑 Manager' : '🎓 Student' }}
+              </span>
+            </div>
+            <div class="text-[11px] text-slate-400">{{ currentUser.email }}</div>
+          </div>
+          
+          <!-- Quick Role Toggle Button (for testing) -->
+          <button @click="toggleUserRole" title="Switch between Manager and Student view" class="bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 border border-slate-700 px-2.5 py-1.5 rounded-lg flex items-center space-x-1.5">
+            <i class="fa-solid fa-repeat text-emerald-400"></i>
+            <span class="text-[11px] hidden md:inline">Switch Role</span>
+          </button>
+        </div>
+
+      </div>
+
+      <!-- Navigation Tabs -->
+      <div class="bg-slate-800 border-t border-slate-700">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex space-x-1 overflow-x-auto py-1">
+          <button @click="activeTab = 'profile'" :class="tabClass('profile')">
+            <i class="fa-solid fa-building mr-1.5"></i> Company 360°
+          </button>
+          <button @click="activeTab = 'tasks'" :class="tabClass('tasks')">
+            <i class="fa-solid fa-list-check mr-1.5"></i> 
+            <span>{{ currentUser.role === 'manager' ? 'Review & Approvals' : 'My Practice Tasks' }}</span>
+            <span v-if="pendingTasksCount > 0" class="ml-1.5 bg-rose-500 text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">{{ pendingTasksCount }}</span>
+          </button>
+          <button @click="activeTab = 'transfer'" :class="tabClass('transfer')">
+            <i class="fa-solid fa-file-contract mr-1.5"></i> Form 117 (Share Transfer)
+          </button>
+          <button @click="activeTab = 'annual'" :class="tabClass('annual')">
+            <i class="fa-solid fa-calendar-check mr-1.5"></i> Annual Returns (Backlog)
+          </button>
+          <button @click="activeTab = 'drive'" :class="tabClass('drive')">
+            <i class="fa-brands fa-google-drive mr-1.5 text-amber-400"></i> Google Drive Cloud
+          </button>
+          <button @click="activeTab = 'dispatch'" :class="tabClass('dispatch')">
+            <i class="fa-solid fa-person-walking mr-1.5"></i> Field / Hemadry Guide
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full">
+      
+      <!-- ========================================== -->
+      <!-- TAB 1: COMPANY 360° PROFILE -->
+      <!-- ========================================== -->
+      <div v-if="activeTab === 'profile'" class="space-y-6">
+        <!-- Client Banner Card -->
+        <div class="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
+          <div class="flex flex-col md:flex-row justify-between items-start md:items-center pb-4 border-b border-slate-100 gap-4">
+            <div>
+              <div class="flex items-center space-x-2">
+                <span class="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-0.5 rounded-full font-semibold">RJSC Registered</span>
+                <a :href="currentClient.drive_folder_link" target="_blank" class="bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs px-2.5 py-0.5 rounded-full font-semibold flex items-center space-x-1 border border-blue-200">
+                  <i class="fa-brands fa-google-drive text-amber-500"></i>
+                  <span>Google Drive Vault</span>
+                </a>
+              </div>
+              <h2 class="text-2xl font-bold text-slate-900 mt-1.5">{{ currentClient.company_name }}</h2>
+              <p class="text-sm text-slate-500"><i class="fa-solid fa-location-dot mr-1"></i> {{ currentClient.registered_address }}</p>
+            </div>
+            <div class="text-right">
+              <span class="text-xs text-slate-400 block">Registration No</span>
+              <span class="text-base font-semibold text-slate-800 font-mono">{{ currentClient.reg_no || 'N/A' }}</span>
+              <span class="text-xs text-slate-400 block mt-1">Incorporated: {{ currentClient.inc_date || 'N/A' }}</span>
+            </div>
+          </div>
+
+          <!-- Stats Grid -->
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 pt-4 text-center">
+            <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
+              <p class="text-xs text-slate-500 uppercase tracking-wider">Authorized Capital</p>
+              <p class="text-lg font-bold text-slate-800 mt-1">Tk. {{ formatNum(currentClient.authorized_capital) }}</p>
+            </div>
+            <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
+              <p class="text-xs text-slate-500 uppercase tracking-wider">Paid-up Capital</p>
+              <p class="text-lg font-bold text-emerald-700 mt-1">Tk. {{ formatNum(currentClient.paid_up_capital) }}</p>
+            </div>
+            <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
+              <p class="text-xs text-slate-500 uppercase tracking-wider">TIN & Circle</p>
+              <p class="text-sm font-semibold text-slate-800 mt-1">{{ currentClient.tin_no || 'Pending' }}</p>
+              <p class="text-xs text-slate-400">{{ currentClient.taxes_circle }}</p>
+            </div>
+            <div class="bg-slate-50 p-3 rounded-lg border border-slate-100">
+              <p class="text-xs text-slate-500 uppercase tracking-wider">RJSC Credentials</p>
+              <p class="text-xs font-mono font-semibold text-slate-700 mt-1">User: {{ currentClient.rjsc_user || '-' }}</p>
+              <p class="text-xs font-mono text-slate-400">Pass: {{ currentClient.rjsc_pass || '-' }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Board of Directors & Shareholders Table with Dynamic Add -->
+        <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+          <div class="px-6 py-4 border-b border-slate-200 flex justify-between items-center bg-slate-50/50">
+            <div>
+              <h3 class="font-bold text-slate-800 text-base"><i class="fa-solid fa-users mr-2 text-emerald-600"></i> Board of Directors & Shareholders</h3>
+              <p class="text-xs text-slate-400">Live shareholding registry of {{ currentClient.company_name }}</p>
+            </div>
+            <button @click="showAddShareholderModal = true" class="bg-slate-900 hover:bg-slate-800 text-white text-xs px-3 py-1.5 rounded-lg font-semibold flex items-center space-x-1 shadow-sm">
+              <i class="fa-solid fa-user-plus mr-1"></i> Add Director/Member
+            </button>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm">
+              <thead class="bg-slate-100 text-slate-600 uppercase text-xs">
+                <tr>
+                  <th class="py-3 px-4">Name & Address</th>
+                  <th class="py-3 px-4">Parents</th>
+                  <th class="py-3 px-4">Designation</th>
+                  <th class="py-3 px-4 text-right">Shares Held</th>
+                  <th class="py-3 px-4 text-right">% Holding</th>
+                  <th class="py-3 px-4 text-center">Cert #</th>
+                  <th class="py-3 px-4 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                <tr v-for="s in shareholders" :key="s.id" class="hover:bg-slate-50/80 transition">
+                  <td class="py-3 px-4">
+                    <div class="font-semibold text-slate-900">{{ s.name }}</div>
+                    <div class="text-xs text-slate-400 truncate max-w-xs">{{ s.address }}</div>
+                  </td>
+                  <td class="py-3 px-4 text-xs text-slate-600">
+                    <div>F: {{ s.father_name }}</div>
+                    <div>M: {{ s.mother_name }}</div>
+                  </td>
+                  <td class="py-3 px-4">
+                    <span :class="designationBadge(s.designation)">{{ s.designation }}</span>
+                  </td>
+                  <td class="py-3 px-4 text-right font-semibold font-mono text-slate-800">{{ formatNum(s.share_count) }}</td>
+                  <td class="py-3 px-4 text-right font-medium text-slate-600">{{ calcPercentage(s.share_count) }}%</td>
+                  <td class="py-3 px-4 text-center font-mono text-xs text-slate-500">{{ s.certificate_no || '-' }}</td>
+                  <td class="py-3 px-4 text-center">
+                    <button @click="deleteShareholder(s.id)" class="text-rose-400 hover:text-rose-600 text-xs" title="Remove Member">
+                      <i class="fa-solid fa-trash"></i>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Recent Generated Documents History -->
+        <div v-if="recentDocs.length > 0" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6">
+          <div class="flex justify-between items-center mb-4">
+            <h3 class="font-bold text-slate-800 text-base"><i class="fa-solid fa-clock-rotate-left mr-2 text-slate-500"></i> Generated Filing Packages</h3>
+            <span class="text-xs text-emerald-600 font-semibold flex items-center space-x-1">
+              <i class="fa-solid fa-cloud-arrow-up"></i> <span>Auto-Synced to Cloud</span>
+            </span>
+          </div>
+          <div class="divide-y divide-slate-100">
+            <div v-for="d in recentDocs" :key="d.id" class="py-3 flex justify-between items-center">
+              <div>
+                <span class="text-xs font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700 mr-2">{{ d.doc_type }}</span>
+                <span class="font-medium text-slate-800 text-sm">{{ d.doc_title }}</span>
+                <span class="text-xs text-slate-400 ml-2">{{ d.created_at }}</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <a :href="'/api/downloads/' + d.file_name" class="text-emerald-600 hover:text-emerald-700 font-semibold text-xs flex items-center space-x-1 bg-emerald-50 px-2.5 py-1 rounded">
+                  <i class="fa-solid fa-download"></i> <span>Download</span>
+                </a>
+                <a :href="d.drive_link || currentClient.drive_folder_link" target="_blank" class="text-blue-600 hover:text-blue-700 font-semibold text-xs flex items-center space-x-1 bg-blue-50 px-2.5 py-1 rounded">
+                  <i class="fa-brands fa-google-drive"></i> <span>Drive</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- TAB 2: MAKER-CHECKER (TASKS & APPROVALS) -->
+      <!-- ========================================== -->
+      <div v-if="activeTab === 'tasks'" class="space-y-6">
+        <div class="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
+          <div class="border-b border-slate-100 pb-3 mb-5 flex justify-between items-center">
+            <div>
+              <h2 class="text-xl font-bold text-slate-900">
+                {{ currentUser.role === 'manager' ? '👑 Manager Review & Approval Queue' : '🎓 Student Practice & Submission Hub' }}
+              </h2>
+              <p class="text-sm text-slate-500">
+                {{ currentUser.role === 'manager' 
+                   ? 'Review filing drafts submitted by students. Approve to generate final documents or send back corrections.' 
+                   : 'Prepare legal filing drafts for clients and submit to the Firm Manager for professional review.' }}
+              </p>
+            </div>
+            <button @click="showNewTaskModal = true" class="bg-emerald-600 hover:bg-emerald-500 text-white text-xs px-3 py-2 rounded-lg font-semibold flex items-center space-x-1 shadow-sm">
+              <i class="fa-solid fa-paper-plane mr-1"></i> Submit New Filing Draft
+            </button>
+          </div>
+
+          <!-- Tasks List -->
+          <div v-if="tasks.length === 0" class="text-center py-12 text-slate-400">
+            <i class="fa-solid fa-clipboard-check text-4xl mb-3"></i>
+            <p class="text-base font-medium">No pending tasks or submissions.</p>
+            <p class="text-xs">Students can submit filing drafts to practice and get manager sign-off.</p>
+          </div>
+
+          <div v-else class="space-y-4">
+            <div v-for="t in tasks" :key="t.id" class="p-4 border rounded-xl shadow-sm transition" :class="taskCardClass(t.status)">
+              <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+                <div>
+                  <div class="flex items-center space-x-2">
+                    <span :class="taskStatusBadge(t.status)">{{ t.status }}</span>
+                    <span class="text-xs font-semibold text-slate-500">{{ t.service_type }}</span>
+                    <span class="text-xs text-slate-400">• {{ t.created_at }}</span>
+                  </div>
+                  <h4 class="text-base font-bold text-slate-900 mt-1">{{ t.title }}</h4>
+                  <p class="text-xs text-slate-600">Company: <span class="font-semibold">{{ t.company_name }}</span> | Prepared by: <span class="font-semibold">{{ t.student_name || 'Student' }}</span></p>
+                  <p v-if="t.manager_comment" class="text-xs text-rose-600 mt-1 bg-rose-50 p-2 rounded border border-rose-200">
+                    <strong>Manager Note:</strong> {{ t.manager_comment }}
+                  </p>
+                </div>
+
+                <!-- Action Buttons -->
+                <div class="flex items-center space-x-2 self-end md:self-center">
+                  <!-- Manager Actions -->
+                  <template v-if="currentUser.role === 'manager' && t.status === 'SUBMITTED'">
+                    <button @click="approveTask(t.id)" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded-lg transition flex items-center space-x-1 shadow-sm">
+                      <i class="fa-solid fa-check mr-1"></i> Approve & Sync Drive
+                    </button>
+                    <button @click="openRejectModal(t.id)" class="bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold px-3 py-2 rounded-lg border border-rose-200 transition flex items-center space-x-1">
+                      <i class="fa-solid fa-xmark mr-1"></i> Request Changes
+                    </button>
+                  </template>
+
+                  <template v-else-if="t.status === 'APPROVED'">
+                    <span class="text-xs font-semibold text-emerald-700 bg-emerald-100 px-3 py-1.5 rounded-lg flex items-center space-x-1">
+                      <i class="fa-solid fa-cloud-arrow-up"></i> <span>Approved & Uploaded to Drive</span>
+                    </span>
+                  </template>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- TAB 3: SHARE TRANSFER (FORM 117) -->
+      <!-- ========================================== -->
+      <div v-if="activeTab === 'transfer'" class="space-y-6">
+        <div class="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
+          <div class="border-b border-slate-100 pb-3 mb-5">
+            <h2 class="text-xl font-bold text-slate-900">⚡ 1-Click Form 117 & Share Transfer Package</h2>
+            <p class="text-sm text-slate-500">Auto-generates Deed, Board Resolution, Tk. 300 Stamp Affidavit, and Assistant Checklist for <strong>{{ currentClient.company_name }}</strong>.</p>
+          </div>
+
+          <form @submit.prevent="generateTransfer" class="space-y-4">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Transferor (শেয়ার বিক্রেতা/দাতা)</label>
+                <select v-model="transferForm.transferor_id" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500" required>
+                  <option v-for="s in shareholders" :key="s.id" :value="s.id">{{ s.name }} (Holds: {{ formatNum(s.share_count) }} Shares)</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Transferee (শেয়ার গ্রহীতা/ক্রেতা)</label>
+                <select v-model="transferForm.transferee_id" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500" required>
+                  <option v-for="s in shareholders" :key="s.id" :value="s.id">{{ s.name }} (Current: {{ formatNum(s.share_count) }} Shares)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Number of Shares</label>
+                <input type="number" v-model.number="transferForm.share_count" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm font-semibold focus:ring-2 focus:ring-emerald-500" required>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Transfer Type</label>
+                <select v-model="transferForm.consideration_type" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500">
+                  <option value="Gift">Gift / Hiba (No Consideration)</option>
+                  <option value="Sale">Sale / Purchase (Monetary Payment)</option>
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Consideration Amount (BDT)</label>
+                <input type="number" v-model.number="transferForm.consideration_amount" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-emerald-500" :disabled="transferForm.consideration_type === 'Gift'">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Distinctive No From</label>
+                <input type="number" v-model.number="transferForm.distinctive_from" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Distinctive No To</label>
+                <input type="number" v-model.number="transferForm.distinctive_to" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm">
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Field Assistant Name</label>
+                <input type="text" v-model="transferForm.assistant_name" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm">
+              </div>
+            </div>
+
+            <div class="pt-3">
+              <button type="submit" :disabled="generating" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition flex items-center justify-center space-x-2 text-base">
+                <i v-if="generating" class="fa-solid fa-spinner fa-spin"></i>
+                <i v-else class="fa-solid fa-bolt"></i>
+                <span>{{ generating ? 'Generating Legal Documents...' : 'Generate Complete Share Transfer Package' }}</span>
+              </button>
+            </div>
+          </form>
+
+          <!-- Results Section with Google Drive Link -->
+          <div v-if="transferResult" class="mt-8 pt-6 border-t border-slate-200">
+            <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-5 mb-5 flex justify-between items-center">
+              <div>
+                <div class="flex items-center space-x-2">
+                  <i class="fa-solid fa-circle-check text-emerald-600 text-xl"></i>
+                  <h4 class="font-bold text-emerald-900 text-lg">Documents Ready & Synced!</h4>
+                </div>
+                <p class="text-sm text-emerald-700 mt-1">Files are saved in output and linked to Google Drive.</p>
+              </div>
+              <a :href="transferResult.google_drive_folder" target="_blank" class="bg-white border border-emerald-300 text-emerald-800 px-3.5 py-2 rounded-lg text-xs font-semibold flex items-center space-x-1.5 shadow-sm hover:bg-emerald-100">
+                <i class="fa-brands fa-google-drive text-amber-500 text-base"></i>
+                <span>Open in Google Drive</span>
+              </a>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-5">
+              <div v-for="f in transferResult.files" :key="f.filename" class="p-4 bg-white border border-slate-200 rounded-lg flex items-center justify-between shadow-sm">
+                <div class="flex items-center space-x-3">
+                  <i class="fa-solid fa-file-word text-blue-600 text-2xl"></i>
+                  <div>
+                    <p class="font-semibold text-slate-800 text-sm">{{ f.title }}</p>
+                    <p class="text-xs text-slate-400 font-mono">{{ f.filename }}</p>
+                  </div>
+                </div>
+                <a :href="f.url" download class="bg-slate-100 hover:bg-slate-200 text-slate-700 p-2 rounded-lg text-xs font-semibold">
+                  <i class="fa-solid fa-download"></i>
+                </a>
+              </div>
+            </div>
+
+            <div class="bg-slate-900 text-white p-5 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-4">
+              <div>
+                <h5 class="font-bold text-base flex items-center">
+                  <i class="fa-brands fa-whatsapp text-emerald-400 text-xl mr-2"></i> Instant WhatsApp Dispatch
+                </h5>
+                <p class="text-xs text-slate-300 mt-0.5">Send full signing checklist and Google Drive link directly to client/Hemadry.</p>
+              </div>
+              <a :href="transferResult.whatsapp_url" target="_blank" class="bg-emerald-500 hover:bg-emerald-400 text-white font-bold py-2.5 px-5 rounded-lg text-sm transition flex items-center space-x-2 shadow-lg">
+                <i class="fa-brands fa-whatsapp text-lg"></i>
+                <span>Send via WhatsApp</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- TAB 4: GOOGLE DRIVE CLOUD MANAGER -->
+      <!-- ========================================== -->
+      <div v-if="activeTab === 'drive'" class="space-y-6">
+        <div class="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
+          <div class="border-b border-slate-100 pb-4 mb-5 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <div class="flex items-center space-x-2">
+                <i class="fa-brands fa-google-drive text-amber-500 text-2xl"></i>
+                <h2 class="text-xl font-bold text-slate-900">Google Drive Cloud File Hub</h2>
+              </div>
+              <p class="text-sm text-slate-500 mt-1">Centralized cloud storage for all firm clients, filing packages, and student submissions.</p>
+            </div>
+            <a :href="currentClient.drive_folder_link || 'https://drive.google.com'" target="_blank" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs px-4 py-2.5 rounded-lg flex items-center space-x-2 shadow">
+              <i class="fa-solid fa-arrow-up-right-from-square"></i>
+              <span>Open {{ currentClient.company_name }} Drive</span>
+            </a>
+          </div>
+
+          <!-- Drive Folder Structure Representation -->
+          <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3 font-mono text-xs">
+            <div class="font-bold text-slate-800 text-sm">📁 FIRM_AUDIT_VAULT / {{ currentClient.company_name }}</div>
+            <div class="pl-4 space-y-2 text-slate-600">
+              <div class="flex items-center space-x-2">
+                <i class="fa-solid fa-folder text-amber-500"></i>
+                <span>📁 RJSC_Share_Transfer_Form_117/</span>
+                <span class="text-emerald-600 font-sans font-semibold ml-2">(4 files generated)</span>
+              </div>
+              <div class="pl-6 text-slate-500">
+                <div>📄 Form_117_Transfer_Deed.docx</div>
+                <div>📄 Board_Resolution.docx</div>
+                <div>📄 Affidavit_Tk300_Stamp.docx</div>
+                <div>📋 00_INSTRUCTIONS_AND_SIGNING_GUIDE.docx</div>
+              </div>
+              <div class="flex items-center space-x-2">
+                <i class="fa-solid fa-folder text-amber-500"></i>
+                <span>📁 Annual_Returns_5Yr_Backlog/</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <i class="fa-solid fa-folder text-amber-500"></i>
+                <span>📁 Invoices_and_Bills/</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <i class="fa-solid fa-folder text-amber-500"></i>
+                <span>📁 Permanent_Company_Vault/ (MoA, AoA, TIN, BIN)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- TAB 5: ANNUAL RETURNS (BACKLOG) -->
+      <!-- ========================================== -->
+      <div v-if="activeTab === 'annual'" class="space-y-6">
+        <div class="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
+          <div class="border-b border-slate-100 pb-3 mb-5">
+            <h2 class="text-xl font-bold text-slate-900">📅 Annual Returns Backlog Package (Schedule X)</h2>
+            <p class="text-sm text-slate-500">Generate AGM Notices, AGM Minutes, and Form X / Schedule X for multiple backlog years in 1 click.</p>
+          </div>
+
+          <div class="space-y-4">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 uppercase mb-2">Select Backlog Financial Years:</label>
+              <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+                <label v-for="fy in availableYears" :key="fy" class="flex items-center space-x-2 bg-slate-50 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-100">
+                  <input type="checkbox" :value="fy" v-model="selectedYears" class="rounded text-emerald-600 focus:ring-emerald-500">
+                  <span class="text-sm font-semibold text-slate-800">{{ fy }}</span>
+                </label>
+              </div>
+            </div>
+
+            <button @click="generateAnnualReturns" :disabled="selectedYears.length === 0 || generating" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl shadow transition flex items-center justify-center space-x-2">
+              <i v-if="generating" class="fa-solid fa-spinner fa-spin"></i>
+              <i v-else class="fa-solid fa-file-export"></i>
+              <span>{{ generating ? 'Generating Backlogs...' : 'Generate Selected (' + selectedYears.length + ') Annual Returns' }}</span>
+            </button>
+          </div>
+
+          <div v-if="annualResult" class="mt-8 pt-6 border-t border-slate-200">
+            <h4 class="font-bold text-slate-900 mb-3">Generated Backlog Years:</h4>
+            <div class="space-y-3">
+              <div v-for="r in annualResult.results" :key="r.fy" class="p-3 bg-slate-50 rounded-lg border border-slate-200 flex justify-between items-center">
+                <div>
+                  <span class="font-bold text-slate-900 mr-2">FY {{ r.fy }}</span>
+                  <span class="text-xs text-slate-500">Notice, Minutes & Schedule X generated</span>
+                </div>
+                <span class="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded font-semibold">Ready in Output</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- TAB 6: FIELD ASSISTANT / HEMADRY -->
+      <!-- ========================================== -->
+      <div v-if="activeTab === 'dispatch'" class="space-y-6">
+        <div class="bg-white rounded-xl p-6 shadow-sm border border-slate-200">
+          <div class="border-b border-slate-100 pb-3 mb-5 flex justify-between items-center">
+            <div>
+              <h2 class="text-xl font-bold text-slate-900">🛵 Field Assistant & Signing Checklist Guide</h2>
+              <p class="text-sm text-slate-500">Full instructions for Hemadry to avoid any mistakes during client signature and notary execution.</p>
+            </div>
+            <button @click="copyChecklist" class="bg-slate-800 hover:bg-slate-700 text-white text-xs px-3 py-2 rounded-lg font-medium transition flex items-center space-x-1">
+              <i class="fa-solid fa-copy"></i>
+              <span>{{ copied ? 'Copied!' : 'Copy to Clipboard' }}</span>
+            </button>
+          </div>
+
+          <div class="p-4 bg-amber-50 border border-amber-200 rounded-lg text-amber-900 text-sm mb-4">
+            <p class="font-bold mb-1">⚠️ মাঠপর্যায়ের গুরুত্বপূর্ণ নির্দেশনা:</p>
+            <ul class="list-disc list-inside space-y-1 text-xs text-amber-800">
+              <li>সব সাইন অবশ্যই কালো কালির বলপেন দিয়ে করাবেন।</li>
+              <li>এফিডেভিট অবশ্যই ৩০০ টাকার নন-জুডিশিয়াল স্ট্যাম্পে প্রিন্ট করে নোটারি পাবলিকের সীল ও রেজিস্ট্রি নম্বর নিশ্চিত করবেন।</li>
+              <li>Form 117-এ উভয় পক্ষের সাক্ষীর পূর্ণ নাম, ঠিকানা ও পেশা উল্লেখ করবেন।</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- MODAL 1: ADD NEW CLIENT / COMPANY -->
+    <div v-if="showAddClientModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+        <div class="flex justify-between items-center pb-3 border-b border-slate-200 mb-4">
+          <h3 class="text-lg font-bold text-slate-900"><i class="fa-solid fa-building mr-2 text-emerald-600"></i> Add New Client Company</h3>
+          <button @click="showAddClientModal = false" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+        <form @submit.prevent="createClient" class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Company Name</label>
+            <input type="text" v-model="newClientForm.company_name" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm" placeholder="e.g. ABC LOGISTICS LTD." required>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Registration No</label>
+              <input type="text" v-model="newClientForm.reg_no" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm" placeholder="C-123456">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Incorporation Date</label>
+              <input type="text" v-model="newClientForm.inc_date" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm" placeholder="DD/MM/YYYY">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Registered Address</label>
+            <input type="text" v-model="newClientForm.registered_address" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm" placeholder="Full Registered Office Address">
+          </div>
+          <div class="grid grid-cols-3 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Authorized Capital</label>
+              <input type="number" v-model.number="newClientForm.authorized_capital" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Paid-up Capital</label>
+              <input type="number" v-model.number="newClientForm.paid_up_capital" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Share Value (Tk)</label>
+              <input type="number" v-model.number="newClientForm.share_value" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm">
+            </div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">e-TIN</label>
+              <input type="text" v-model="newClientForm.tin_no" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">VAT BIN</label>
+              <input type="text" v-model="newClientForm.bin_no" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Google Drive Folder URL (Optional)</label>
+            <input type="text" v-model="newClientForm.drive_folder_link" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm" placeholder="https://drive.google.com/drive/folders/...">
+          </div>
+          <div class="pt-3 flex justify-end space-x-2">
+            <button type="button" @click="showAddClientModal = false" class="px-4 py-2 border rounded-lg text-sm font-semibold text-slate-600">Cancel</button>
+            <button type="submit" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-bold shadow">Save Company</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL 2: ADD SHAREHOLDER / DIRECTOR -->
+    <div v-if="showAddShareholderModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+        <div class="flex justify-between items-center pb-3 border-b border-slate-200 mb-4">
+          <h3 class="text-lg font-bold text-slate-900">Add Director / Shareholder to {{ currentClient.company_name }}</h3>
+          <button @click="showAddShareholderModal = false" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+        <form @submit.prevent="createShareholder" class="space-y-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Full Name</label>
+            <input type="text" v-model="newShForm.name" class="w-full border border-slate-300 rounded-lg p-2 text-sm" required>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Father's Name</label>
+              <input type="text" v-model="newShForm.father_name" class="w-full border border-slate-300 rounded-lg p-2 text-sm">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Mother's Name</label>
+              <input type="text" v-model="newShForm.mother_name" class="w-full border border-slate-300 rounded-lg p-2 text-sm">
+            </div>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Residential Address</label>
+            <input type="text" v-model="newShForm.address" class="w-full border border-slate-300 rounded-lg p-2 text-sm">
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Designation</label>
+              <select v-model="newShForm.designation" class="w-full border border-slate-300 rounded-lg p-2 text-sm">
+                <option value="Managing Director">Managing Director</option>
+                <option value="Chairman">Chairman</option>
+                <option value="Director">Director</option>
+                <option value="Shareholder">Shareholder</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Number of Shares</label>
+              <input type="number" v-model.number="newShForm.share_count" class="w-full border border-slate-300 rounded-lg p-2 text-sm">
+            </div>
+          </div>
+          <div class="pt-3 flex justify-end space-x-2">
+            <button type="button" @click="showAddShareholderModal = false" class="px-4 py-2 border rounded-lg text-sm text-slate-600">Cancel</button>
+            <button type="submit" class="px-5 py-2 bg-slate-900 text-white rounded-lg text-sm font-bold">Add Member</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL 3: SUBMIT NEW TASK (Student Practice) -->
+    <div v-if="showNewTaskModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl">
+        <div class="flex justify-between items-center pb-3 border-b border-slate-200 mb-4">
+          <h3 class="text-lg font-bold text-slate-900">Submit Filing Draft for Manager Sign-off</h3>
+          <button @click="showNewTaskModal = false" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-lg"></i></button>
+        </div>
+        <form @submit.prevent="submitTask" class="space-y-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Service Type</label>
+            <select v-model="newTaskForm.service_type" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm">
+              <option value="Share Transfer (Form 117)">Share Transfer (Form 117 & Affidavits)</option>
+              <option value="Annual Returns (Backlog)">Annual Returns (5-Year Backlog)</option>
+              <option value="Form IX & XII (Directorship)">Form IX & XII (Director Appointment)</option>
+              <option value="Professional Billing">Professional Billing Requisition</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 uppercase mb-1">Task / Filing Title</label>
+            <input type="text" v-model="newTaskForm.title" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm" placeholder="e.g. Form 117 Transfer of 25,000 shares to Sanjida" required>
+          </div>
+          <div class="pt-3 flex justify-end space-x-2">
+            <button type="button" @click="showNewTaskModal = false" class="px-4 py-2 border rounded-lg text-sm text-slate-600">Cancel</button>
+            <button type="submit" class="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-sm font-bold shadow">Submit to Manager</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- MODAL 4: MANAGER REJECT / REQUEST CHANGES -->
+    <div v-if="showRejectModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
+        <h3 class="text-base font-bold text-slate-900 mb-2">Request Corrections from Student</h3>
+        <p class="text-xs text-slate-500 mb-4">Specify what needs to be fixed in the legal drafting:</p>
+        <textarea v-model="rejectComment" rows="3" class="w-full border border-slate-300 rounded-lg p-2.5 text-sm" placeholder="e.g. Please verify distinctive share numbers and date of transfer..."></textarea>
+        <div class="pt-4 flex justify-end space-x-2">
+          <button @click="showRejectModal = false" class="px-3 py-1.5 border rounded-lg text-xs font-semibold text-slate-600">Cancel</button>
+          <button @click="confirmReject" class="px-4 py-1.5 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold shadow">Send Corrections</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-slate-200 py-4 text-center text-xs text-slate-500">
+      Enterprise Audit Firm & Practice Cloud • Google Drive Integrated • Role-Based Maker-Checker Security
+    </footer>
+
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

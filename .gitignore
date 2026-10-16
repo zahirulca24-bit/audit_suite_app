@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+ENV/
+*.db
+*.sqlite3
+generated_docs/*
+!generated_docs/.gitkeep
+avenquis-firm-os/node_modules/
+avenquis-firm-os/.next/
+avenquis-firm-os/dist/
+.vscode/
+.idea/
