@@ -1,0 +1,50 @@
+{
+  "name": "rjsc-automation-suite",
+  "version": "1.0.0",
+  "description": "RJSC Corporate Automation & Audit Practice Suite for CA Firms",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "build:win": "electron-builder --win nsis",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "com.avenquis.rjscsuite",
+    "productName": "RJSC Corporate Automation Suite",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "RJSC Corporate Suite"
+    },
+    "files": [
+      "main.js",
+      "static/**/*",
+      "generators/**/*",
+      "app.py",
+      "database.py",
+      "requirements.txt",
+      "generated_docs/**/*"
+    ]
+  },
+  "author": "CA Firm OS & Automation Team",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^44.8.0",
+    "electron-builder": "^26.15.3"
+  }
+}

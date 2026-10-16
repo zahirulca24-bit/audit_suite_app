@@ -13,5 +13,8 @@ generated_docs/*
 avenquis-firm-os/node_modules/
 avenquis-firm-os/.next/
 avenquis-firm-os/dist/
+node_modules/
+dist-electron/
+dist/
 .vscode/
 .idea/
